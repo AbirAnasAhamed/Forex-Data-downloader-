@@ -69,7 +69,7 @@ export const LiveHybridTickPanel: React.FC = () => {
       </div>
 
       <div className="grid-2">
-        <ExportAndMergePanel />
+        <ExportAndMergePanel symbol={currentSymbol || 'EURUSD'} />
         <EnvironmentSettings />
       </div>
 

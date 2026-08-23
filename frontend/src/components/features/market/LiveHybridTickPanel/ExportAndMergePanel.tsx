@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 
-export const ExportAndMergePanel: React.FC = () => {
+interface ExportPanelProps {
+  symbol?: string;
+}
+
+export const ExportAndMergePanel: React.FC<ExportPanelProps> = ({ symbol = 'EURUSD' }) => {
   const [format, setFormat] = useState('parquet');
   const [strategy, setStrategy] = useState('ffill');
 
@@ -12,7 +16,7 @@ export const ExportAndMergePanel: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: 'EURUSD', // Mocked for now, normally would get from context
+          symbol: symbol,
           format: format,
           strategy: strategy,
           start_time: new Date(Date.now() - 24*60*60*1000).toISOString(),

@@ -8,7 +8,7 @@ ZMQ_HIST_SUB_PORT = 7780  # Receive historical fetch commands
 ZMQ_HIST_PUB_PORT = 7781  # Send historical chunks back
 
 def init_mt5(server, login, password):
-    if not mt5.initialize(server=server, login=int(login), password=password):
+    if not mt5.initialize(path="C:\\Program Files\\MetaTrader 5\\terminal64.exe", server=server, login=int(login), password=password, portable=True):
         print("HistWorker: MT5 init failed, error =", mt5.last_error())
         return False
     return True

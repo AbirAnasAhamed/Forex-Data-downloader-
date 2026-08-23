@@ -56,8 +56,10 @@ async def shutdown_event():
 # Include Routers
 from fastapi import Depends
 from backend.app.api.endpoints.auth import router as auth_router, get_current_user
+from backend.app.api.endpoints.brokers import router as brokers_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(brokers_router, prefix="/api/brokers", tags=["brokers"], dependencies=[Depends(get_current_user)])
 app.include_router(ws_router, tags=["websockets"]) # WS protected inside the endpoint
 app.include_router(engine_router, prefix="/api/engine", tags=["engine"], dependencies=[Depends(get_current_user)])
 app.include_router(export_router, prefix="/api/data", tags=["export"], dependencies=[Depends(get_current_user)])

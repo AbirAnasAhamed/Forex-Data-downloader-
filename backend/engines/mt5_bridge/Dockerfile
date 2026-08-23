@@ -12,10 +12,12 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg2 \
     software-properties-common \
-    xvfb \
-    winbind \
     cabextract \
     unzip \
+    xdotool \
+    fluxbox \
+    xvfb \
+    winbind \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Wine HQ repository and Wine
@@ -52,20 +54,24 @@ RUN wget https://bootstrap.pypa.io/pip/3.9/get-pip.py -O /tmp/get-pip.py && \
 RUN xvfb-run -a wine C:/Python39/python.exe -m pip install --no-cache-dir MetaTrader5 pyzmq pandas
 
 # ---------------------------------------------------------
-
-# Copy the MetaTrader 5 setup file
-RUN wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe -O /tmp/mt5setup.exe
+# INJECT PRE-INSTALLED METATRADER 5 FROM ANOTHER IMAGE
+# ---------------------------------------------------------
+COPY --from=fortesenselabs/metatrader5-terminal ["/opt/wineprefix/drive_c/Program Files/MetaTrader 5/", "/root/.wine/drive_c/Program Files/MetaTrader 5/"]
 
 # Copy our dynamic bridge scripts
 WORKDIR /app
 COPY dynamic_publisher.py .
 COPY historical_worker.py .
 
-# Set display for Xvfb
+# Set display for Xvfb and unbuffered Python output
 ENV DISPLAY=:99
+ENV PYTHONUNBUFFERED=1
 
-# The entrypoint starts Xvfb and then our Python scripts via Wine
-CMD Xvfb :99 -screen 0 1024x768x16 & \
+# The entrypoint starts Xvfb, fluxbox, runs an xdotool auto-clicker for EULA bypass, and starts our Python scripts
+CMD rm -f /tmp/.X99-lock && \
+    Xvfb :99 -screen 0 1024x768x16 & \
+    sleep 1 && env DISPLAY=:99 fluxbox & \
+    (sleep 5 && while true; do DISPLAY=:99 xdotool key Escape; sleep 2; done) & \
     echo "Starting MT5 Historical Worker..." && \
     wine C:/Python39/python.exe historical_worker.py & \
     echo "Starting MT5 Bridge Engine..." && \

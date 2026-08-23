@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface DynamicCredentialsProps {
   engine: string;
@@ -6,6 +6,15 @@ interface DynamicCredentialsProps {
   onDisconnect: () => void;
   isConnected: boolean;
 }
+
+interface Broker {
+  id: string;
+  name: string;
+  default_server: string;
+}
+
+// Module-level cache to prevent redundant API calls
+let cachedBrokersDB: Record<string, Broker[]> | null = null;
 
 export const DynamicCredentials: React.FC<DynamicCredentialsProps> = ({ engine, onConnect, onDisconnect, isConnected }) => {
   const [symbol, setSymbol] = useState('EURUSD');
@@ -16,6 +25,56 @@ export const DynamicCredentials: React.FC<DynamicCredentialsProps> = ({ engine, 
   const [secret, setSecret] = useState('');
   const [token, setToken] = useState('');
   const [accountId, setAccountId] = useState('');
+  
+  const [brokersDB, setBrokersDB] = useState<Record<string, Broker[]>>({});
+  const [selectedBrokerId, setSelectedBrokerId] = useState<string>('');
+
+  useEffect(() => {
+    if (cachedBrokersDB) {
+      setBrokersDB(cachedBrokersDB);
+    } else {
+      const fetchBrokers = async () => {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          const { apiFetch } = await import('../../../../utils/crypto');
+          const res = await apiFetch(`${apiUrl}/api/brokers/list`);
+          if (res.ok) {
+            const data = await res.json();
+            cachedBrokersDB = data;
+            setBrokersDB(data);
+          }
+        } catch (e) {
+          console.error("Failed to fetch brokers", e);
+        }
+      };
+      fetchBrokers();
+    }
+  }, []);
+
+  // When engine changes, reset broker selection and server
+  useEffect(() => {
+    setSelectedBrokerId('');
+    if (engine === 'mt5') {
+      setServer('');
+    }
+  }, [engine]);
+
+  const handleBrokerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setSelectedBrokerId(val);
+    
+    if (val && val !== 'custom') {
+      const brokerList = brokersDB[engine] || [];
+      const broker = brokerList.find(b => b.id === val);
+      if (broker && engine === 'mt5') {
+        setServer(broker.default_server);
+      }
+    } else {
+      if (engine === 'mt5') {
+        setServer('');
+      }
+    }
+  };
 
   const handleConnect = () => {
     if (!symbol.trim()) {
@@ -23,8 +82,12 @@ export const DynamicCredentials: React.FC<DynamicCredentialsProps> = ({ engine, 
       return;
     }
     if (engine === 'mt5') {
-      if (!login || !password) {
-        alert("Login ID and Password are required for MT5!");
+      if (!login || !password || !server) {
+        alert("Server, Login ID, and Password are required for MT5!");
+        return;
+      }
+      if (isNaN(Number(login))) {
+        alert("MT5 Login ID must be a numeric value!");
         return;
       }
       onConnect({ symbol, server, login, password });
@@ -36,6 +99,8 @@ export const DynamicCredentials: React.FC<DynamicCredentialsProps> = ({ engine, 
       onConnect({ symbol, client_id: clientId, secret, token, account_id: accountId });
     }
   };
+
+  const currentBrokers = brokersDB[engine] || [];
 
   return (
     <div className="glass-panel">
@@ -53,6 +118,23 @@ export const DynamicCredentials: React.FC<DynamicCredentialsProps> = ({ engine, 
           onChange={(e) => setSymbol(e.target.value)}
           disabled={isConnected}
         />
+      </div>
+      
+      <div className="input-group">
+        <label className="input-label">Select Broker</label>
+        <select 
+          className="premium-input" 
+          value={selectedBrokerId} 
+          onChange={handleBrokerChange} 
+          disabled={isConnected}
+          style={{ appearance: 'none', backgroundColor: 'rgba(255,255,255,0.05)', color: 'white' }}
+        >
+          <option value="" style={{ color: 'black' }}>-- Select a Broker --</option>
+          {currentBrokers.map(b => (
+            <option key={b.id} value={b.id} style={{ color: 'black' }}>{b.name}</option>
+          ))}
+          <option value="custom" style={{ color: 'black' }}>Other / Custom Broker</option>
+        </select>
       </div>
 
       {engine === 'mt5' ? (

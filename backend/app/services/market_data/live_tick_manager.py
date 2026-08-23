@@ -101,10 +101,14 @@ class LiveTickManager:
     Factory pattern manager that allows dynamically switching between MT5 and cTrader engines.
     """
     def __init__(self):
+        import os
+        mt5_host = os.environ.get("MT5_HOST", "mt5_bridge")
+        ctrader_host = os.environ.get("CTRADER_HOST", "ctrader_bridge")
+        
         # MT5 uses 7776 for commands, 7777 for data
-        self.mt5_streamer = EngineStreamer("mt5", 7776, 7777)
+        self.mt5_streamer = EngineStreamer("mt5", 7776, 7777, host=mt5_host)
         # cTrader uses 7778 for commands, 7779 for data
-        self.ctrader_streamer = EngineStreamer("ctrader", 7778, 7779)
+        self.ctrader_streamer = EngineStreamer("ctrader", 7778, 7779, host=ctrader_host)
         
         self.active_streamer = None
         
@@ -129,6 +133,9 @@ class LiveTickManager:
         # Connect and start new stream
         await self.active_streamer.connect_engine(credentials)
         await self.active_streamer.start_streaming()
+        
+        # Ensure DB saver is running (in case it was stopped during a disconnect)
+        tick_db_saver.start()
 
     async def disconnect(self):
         if self.active_streamer:

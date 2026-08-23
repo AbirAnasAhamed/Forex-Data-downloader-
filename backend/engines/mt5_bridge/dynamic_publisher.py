@@ -8,7 +8,13 @@ ZMQ_PUB_PORT = 7777  # Publish ticks to backend
 
 def init_mt5(server, login, password):
     print(f"Attempting to initialize MT5 for server: {server}, login: {login}")
-    if not mt5.initialize(server=server, login=int(login), password=password):
+    try:
+        login_int = int(login)
+    except ValueError:
+        print(f"Error: Login ID must be a number, got '{login}'")
+        return False
+        
+    if not mt5.initialize(path="C:\\Program Files\\MetaTrader 5\\terminal64.exe", server=server, login=login_int, password=password, portable=True):
         print("initialize() failed, error code =", mt5.last_error())
         return False
     print("MT5 successfully initialized and logged in!")
