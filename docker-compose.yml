@@ -1,0 +1,95 @@
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: forex_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-forex_data}
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - timescaledb
+      - redis
+    networks:
+      - forex_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: forex_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - forex_net
+
+  mt5_bridge:
+    build:
+      context: ./backend/engines/mt5_bridge
+      dockerfile: Dockerfile
+    container_name: forex_mt5_bridge
+    restart: unless-stopped
+    ports:
+      - "7776:7776"
+      - "7777:7777"
+      - "7780:7780"
+      - "7781:7781"
+    environment:
+      - ZMQ_PORT=7777
+    networks:
+      - forex_net
+
+  ctrader_bridge:
+    build:
+      context: ./backend/engines/ctrader_bridge
+      dockerfile: Dockerfile
+    container_name: forex_ctrader_bridge
+    restart: unless-stopped
+    ports:
+      - "7778:7778"
+      - "7779:7779"
+    networks:
+      - forex_net
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: forex_timescaledb
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-forex_data}
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - forex_net
+
+  redis:
+    image: redis:alpine
+    container_name: forex_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - forex_net
+
+volumes:
+  timescaledb_data:
+
+networks:
+  forex_net:
+    driver: bridge
